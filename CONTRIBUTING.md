@@ -18,6 +18,17 @@ Obrigado pelo interesse. Algumas regras para o projeto continuar confiável:
 - Mudança em `packages/core` (schema do banco ou contrato HTTP) afeta todo mundo: descreva no
   PR o que muda para o ingest, a API e a web.
 
+## Testes
+
+- Web (`apps/web`): `cd apps/web` e `bun test`. Roda com DOM de teste (happy-dom) e Testing Library, e nao
+  precisa de Postgres.
+- O `bun test` da raiz nao inclui o web: o `bunfig.toml` da raiz ignora `apps/web/**`, porque o web depende
+  do preload de DOM dele (`apps/web/bunfig.toml`).
+- Convencao: o teste de componente fica ao lado do arquivo, como `NomeDoComponente.test.tsx`, e usa `bun:test`.
+- CI: `.github/workflows/testes.yml` roda em todo pull request e em push na main. Sobe um Postgres 16
+  descartavel (`plenario_test`), aplica o schema (`bun run db:push`) e roda `bun run typecheck` e o `bun test`
+  de `apps/api`, `apps/ingest`, `apps/export` e `apps/web`, um workspace por vez. Nao usa segredos.
+
 ## Boas primeiras tarefas
 
 - Nova fonte: despesas do Senado (CEAPS), discursos, presença em comissões.

@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import { sql } from "@plenario/core/db";
 import type { FeedItem, FeedItemTipo, Pagina } from "@plenario/core/api";
 import { TIPOS_FEED, caminhos, type PaginaFeed } from "@plenario/core/estatico";
+import { ordenarPorMicrossegundo, primeiraQuebraDeOrdem } from "./ordem";
 
 const arg = (nome: string) => {
   const i = process.argv.indexOf(nome);
@@ -82,8 +83,14 @@ async function apiPaginada(path: string, max = Infinity): Promise<FeedItem[]> {
   return itens.slice(0, max);
 }
 
-const compara = (a: { ocorridoEm: string; id: string }, b: { ocorridoEm: string; id: string }) =>
-  a.ocorridoEm < b.ocorridoEm ? 1 : a.ocorridoEm > b.ocorridoEm ? -1 : Number(b.id) - Number(a.id);
+// A API ordena por ocorrido_em em us; o ISO exportado so tem ms. Le o us do banco para ordenar igual.
+async function usDosIds(ids: string[]): Promise<Map<string, bigint>> {
+  if (ids.length === 0) return new Map();
+  const rows = await sql<{ id: string; us: string }[]>`
+    select id::text as id, (extract(epoch from ocorrido_em) * 1000000)::bigint::text as us
+    from evento where id = any(${ids}::bigint[])`;
+  return new Map(rows.map((r) => [r.id, BigInt(r.us)]));
+}
 
 const feedParls = await amostra(sql`
   (select parlamentar_id as id from evento group by 1 order by count(*) desc limit 2)
@@ -91,7 +98,21 @@ const feedParls = await amostra(sql`
 let itensConferidos = 0;
 for (const id of feedParls) {
   const fluxos = await Promise.all(TIPOS_FEED.map((t) => fluxo((n) => caminhos.feed(id, t, n))));
-  const merge = fluxos.flat().sort(compara);
+  const todos = fluxos.flat();
+  const usPorId = await usDosIds(todos.map((i) => i.id));
+  const merge = ordenarPorMicrossegundo(todos, usPorId);
+  // o merge reordena, entao a ordem de cada arquivo exportado e conferida a parte
+  TIPOS_FEED.forEach((tipo, k) => {
+    const fluxoTipo = fluxos[k]!;
+    conferir(`feed ${id} ${tipo} ordem`, () => {
+      const q = primeiraQuebraDeOrdem(fluxoTipo, usPorId);
+      if (q !== null) {
+        throw new Error(
+          `fora de ordem no indice ${q}: ids ${fluxoTipo[q - 1]!.id} (${fluxoTipo[q - 1]!.ocorridoEm}, us ${usPorId.get(fluxoTipo[q - 1]!.id) ?? "?"}), ${fluxoTipo[q]!.id} (${fluxoTipo[q]!.ocorridoEm}, us ${usPorId.get(fluxoTipo[q]!.id) ?? "?"})`,
+        );
+      }
+    });
+  });
   const api = await apiPaginada(`/parlamentares/${id}/feed`);
   itensConferidos += api.length;
   conferir(`feed ${id} ids`, () => deepStrictEqual(merge.map((i) => i.id), api.map((i) => i.id)));

@@ -9,7 +9,8 @@
     "build:pages": "tsc --noEmit && VITE_DADOS=estatico VITE_BASE=/plenario/ vite build",
     "preview": "vite preview",
     "preview:pages": "VITE_BASE=/plenario/ vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "test": "bun test"
   },
   "dependencies": {
     "@plenario/core": "workspace:*",
@@ -19,7 +20,11 @@
     "react-router": "^7.2.0"
   },
   "devDependencies": {
+    "@happy-dom/global-registrator": "^21.0.4",
     "@tailwindcss/vite": "^4.0.0",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
+    "@types/bun": "latest",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",

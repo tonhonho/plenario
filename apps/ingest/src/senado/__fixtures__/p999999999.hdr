@@ -1,0 +1,14 @@
+HTTP/1.1 302 Moved Temporarily
+Server: nginx
+Date: Wed, 28 Oct 2026 13:19:42 GMT
+Content-Length: 0
+Connection: keep-alive
+x-frame-options: SAMEORIGIN
+x-force-cache: 1
+location: principalmateria
+cache-control: max-age=30
+Age: 0
+X-Content-Type-Options: nosniff
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+

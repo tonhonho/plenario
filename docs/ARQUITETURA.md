@@ -38,7 +38,9 @@ fontes públicas ──► apps/ingest ──► Postgres ──► apps/api (Ho
 - `evento` é o feed **materializado**: uma linha por card, com dedupe por
   `(parlamentar, tipo, ref)`. O ingest escreve; a API pagina por `(ocorrido_em desc, id desc)`.
 - Tipos de card no v1: `voto` (só votação nominal; simbólica não tem voto individual),
-  `proposicao` (autoria/coautoria) e `despesa_mensal` (cota parlamentar, só Câmara no v1).
+  `proposicao` (autoria/coautoria), `despesa_mensal` (cota parlamentar, só Câmara no v1) e
+  `consulta_publica` (placar da consulta pública do e-Cidadania, ligado ao primeiro signatário; só
+  Senado, ver `docs/consultas-publicas.md`).
 
 ## Fontes
 
@@ -48,6 +50,17 @@ fontes públicas ──► apps/ingest ──► Postgres ──► apps/api (Ho
 | Votações + votos | arquivos `votacoes-AAAA.json`, `votacoesVotos-AAAA.json`; API `api/v2/votacoes` no incremental | `dadosabertos/votacao?dataInicio&dataFim` (o antigo `senador/{id}/votacoes` está **descontinuado**) |
 | Proposições + autores | arquivos `proposicoes-AAAA.json`, `proposicoesAutores-AAAA.json` | `dadosabertos/processo` / `materia` |
 | Despesas | arquivo CEAP `Ano-AAAA.json` | fora do v1 |
+| Consultas públicas | — | página HTML do e-Cidadania `www12.senado.leg.br/ecidadania/visualizacaomateria?id=<codigoMateria>` (sem API) |
+
+Consultas públicas: a página não tem API, então o ingest lê o HTML com o mesmo User-Agent, 1
+requisição por intervalo (`INGEST_CONSULTAS_INTERVALO_MS`, padrão 1000) e um teto de matérias por
+execução (`INGEST_CONSULTAS_MAX`, padrão 500), a de leitura mais antiga primeiro. Leitura que falha
+é pulada e logada, nunca vira zero.
+
+No `ingest senado`, cada fonte (parlamentares, votações, proposições, consultas) roda isolada: a
+falha de uma é logada e as demais seguem, exceto votações e proposições, que dependem da lista de
+senadores e são puladas se parlamentares falhar. Com qualquer falha, o processo termina com erro
+depois de rodar o resto.
 
 Escopo inicial: legislatura atual (Câmara 57ª, desde 01/02/2023).
 

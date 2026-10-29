@@ -8,6 +8,6 @@
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "@plenario/core": "workspace:*", "drizzle-orm": "^0.44.0", "hono": "^4.7.0" },
+  "dependencies": { "@plenario/core": "workspace:*", "drizzle-orm": "^0.45.2", "hono": "^4.7.0" },
   "devDependencies": { "typescript": "^5.8.0", "@types/bun": "latest" }
 }

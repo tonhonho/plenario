@@ -15,6 +15,9 @@ Câmara dos Deputados e do Senado Federal, e todo item leva link para a página 
 - Seguir parlamentares e ver tudo num feed só. A lista fica no seu navegador e pode ser
   exportada ou compartilhada por link.
 - Abrir uma votação e ver o placar por partido e o voto de cada parlamentar.
+- Ver no feed e na página do projeto as consultas públicas do e-Cidadania sobre projetos do
+  Senado: total de sim e de não até a data da apuração, com link para a enquete oficial. É uma
+  enquete aberta, não uma votação.
 
 ## O que o projeto não faz
 

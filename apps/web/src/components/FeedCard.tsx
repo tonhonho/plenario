@@ -1,5 +1,6 @@
 import type {
   FeedItem,
+  FeedItemConsulta,
   FeedItemDespesaMensal,
   FeedItemProposicao,
   FeedItemVoto,
@@ -22,6 +23,7 @@ import {
   partidoUf,
 } from "../lib/format";
 import { IconeDiferente, IconeIgual, IconePredio } from "./Icones";
+import { PlacarConsulta } from "./PlacarConsulta";
 import { Avatar, Etiqueta, FonteLink, Tempo, VotoSelo } from "./ui";
 
 export function hrefParlamentar(id: string) {
@@ -249,7 +251,58 @@ export function FeedCard({ item }: { item: FeedItem }) {
       return <CardProposicao item={item} />;
     case "despesa_mensal":
       return <CardDespesa item={item} />;
+    case "consulta_publica":
+      return <CardConsulta item={item} />;
   }
+}
+
+/** Classe do `<article>` dos cards "prédio" (consulta pública e votação agrupada). */
+const CLASSE_CARD_PREDIO =
+  "relative flex gap-3 border-b border-line px-4 py-3.5 transition-colors has-[.stretched:hover]:bg-sunken/60 has-[.stretched:focus-visible]:bg-sunken/60";
+
+/**
+ * Consulta pública do e-Cidadania (Senado): quem votou foi o público, então o card é do tipo
+ * "prédio", com o autor citado no corpo. Texto neutro: só os totais, sem percentual nem barra.
+ */
+function CardConsulta({ item }: { item: FeedItemConsulta }) {
+  const pr = item.proposicao;
+  const p = item.parlamentar;
+  return (
+    <article className={CLASSE_CARD_PREDIO}>
+      <span
+        aria-hidden="true"
+        className="grid size-11 shrink-0 place-items-center self-start rounded-full border border-line bg-sunken text-muted"
+      >
+        <IconePredio tamanho={20} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-5 text-muted">
+          Consulta pública · {CASA_NOME[pr.casa]} · <Tempo iso={item.ocorridoEm} />
+        </p>
+        <p className="mt-1 text-[15px] leading-6 text-ink">
+          <Link to={hrefProposicao(pr.id)} className="stretched font-semibold hover:underline">
+            {pr.rotulo}
+          </Link>{" "}
+          — de{" "}
+          <Link
+            to={hrefParlamentar(p.id)}
+            className="above-stretch font-medium text-ink-2 hover:underline"
+          >
+            {p.nome}
+          </Link>{" "}
+          ({partidoUf(p)})
+        </p>
+        {pr.ementa && <p className="mt-1 line-clamp-3 text-sm leading-5 text-ink-2">{pr.ementa}</p>}
+        <PlacarConsulta
+          votosSim={item.votosSim}
+          votosNao={item.votosNao}
+          apuradoEm={item.apuradoEm}
+          urlFonte={item.urlFonte}
+          linkClassName="above-stretch"
+        />
+      </div>
+    </article>
+  );
 }
 
 const VISIVEIS_GRUPO = 6;
@@ -265,7 +318,7 @@ export function CardGrupoVotacao({ itens }: { itens: FeedItemVoto[] }) {
   const mostrados = aberto ? itens : itens.slice(0, VISIVEIS_GRUPO);
   const ocultos = itens.length - mostrados.length;
   return (
-    <article className="relative flex gap-3 border-b border-line px-4 py-3.5 transition-colors has-[.stretched:hover]:bg-sunken/60 has-[.stretched:focus-visible]:bg-sunken/60">
+    <article className={CLASSE_CARD_PREDIO}>
       <span
         aria-hidden="true"
         className="grid size-11 shrink-0 place-items-center self-start rounded-full border border-line bg-sunken text-muted"

@@ -2,7 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { sql } from "@plenario/core/db";
 import { normalizarBusca } from "@plenario/core/texto";
+import { urlFonteConsultaValida } from "@plenario/core/fonte";
 import type {
+  ConsultaPlacar,
   ErroApi,
   Health,
   PartidoResumo,
@@ -273,6 +275,23 @@ app.get("/votacoes/:id", async (c) => {
 
 // ---------- /proposicoes/:id ----------
 
+interface LinhaConsultaPlacar {
+  votos_sim: number;
+  votos_nao: number;
+  url_fonte: string;
+  apurado_em: string;
+}
+
+// Dado inválido (votos negativos/não inteiros, data que não parseia, URL fora da regra) => null, nunca "0 x 0".
+function consultaPlacar(l: LinhaConsultaPlacar | undefined): ConsultaPlacar | null {
+  if (!l) return null;
+  const votoOk = (n: unknown): n is number => typeof n === "number" && Number.isInteger(n) && n >= 0;
+  if (!votoOk(l.votos_sim) || !votoOk(l.votos_nao)) return null;
+  if (typeof l.apurado_em !== "string" || Number.isNaN(Date.parse(l.apurado_em))) return null;
+  if (!urlFonteConsultaValida(l.url_fonte)) return null;
+  return { votosSim: l.votos_sim, votosNao: l.votos_nao, apuradoEm: l.apurado_em, urlFonte: l.url_fonte };
+}
+
 app.get("/proposicoes/:id", async (c) => {
   const id = validarId(c.req.param("id"), "id de proposição");
   const [p] = await sql<(LinhaProposicaoResumo & { data_apresentacao: string | null })[]>`
@@ -281,13 +300,19 @@ app.get("/proposicoes/:id", async (c) => {
     from proposicao where id = ${id}`;
   if (!p) throw erro404("proposição não encontrada");
 
-  const [autores, votacoes] = await Promise.all([
+  const [autores, votacoes, consultas] = await Promise.all([
     sql<(LinhaParlamentarResumo & { proponente: boolean; ordem: number | null })[]>`
       select pa.id, pa.casa, pa.nome, pa.partido, pa.uf, pa.foto_url, pa.em_exercicio, a.proponente, a.ordem
       from proposicao_autor a join parlamentar pa on pa.id = a.parlamentar_id
       where a.proposicao_id = ${id}
       order by a.ordem nulls last, pa.busca, pa.id`,
     sql<LinhaVotacaoResumo[]>`${selectVotacaoResumo()} where v.proposicao_id = ${id} order by v.data_hora desc, v.id`,
+    // várias consultas na mesma proposição: vale a apuração mais recente (mesma regra do feed)
+    sql<LinhaConsultaPlacar[]>`
+      select votos_sim, votos_nao, url_fonte,
+             to_char(apurado_em at time zone 'UTC', ${FMT_ISO}) as apurado_em
+      from consulta_publica where proposicao_id = ${id}
+      order by consulta_publica.apurado_em desc limit 1`,
   ]);
 
   const corpo: ProposicaoDetalhe = {
@@ -295,6 +320,7 @@ app.get("/proposicoes/:id", async (c) => {
     dataApresentacao: p.data_apresentacao,
     autores: autores.map((a) => ({ parlamentar: parlamentarResumo(a), proponente: a.proponente, ordem: a.ordem })),
     votacoes: votacoes.map(votacaoResumo),
+    consulta: consultaPlacar(consultas[0]),
   };
   return c.json(corpo);
 });

@@ -1,0 +1,87 @@
+# Typecheck e testes do plenario: roda em pull request e em push na main.
+#
+# Desenho:
+#   - Um Postgres 16 descartavel sobe como servico com o banco `plenario_test`. Os testes de
+#     integracao apagam tabelas: por isso a URL termina em `_test` e aponta para localhost (guardas
+#     em apps/ingest/src/testing/banco.ts e apps/api/src/app.test.ts).
+#   - `bun test` roda um workspace por passo, em sequencia. Os testes compartilham o mesmo banco
+#     e truncam tabelas, entao nao podem rodar em paralelo. Nunca `bun test` na raiz.
+#   - `packages/core` nao tem script `test` (nao tem testes): fica de fora dos passos de teste e
+#     entra so no typecheck da raiz.
+#   - Sem segredos: o banco e descartavel, criado so para esta execucao, com senha de teste.
+#   - Separado do `pages.yml` (dados e publicacao): este workflow nao publica nada e nao usa o
+#     grupo `pages`.
+#   - Actions e imagem do Postgres fixadas por SHA/digest (tag mutavel nao troca o codigo que roda
+#     aqui); o Dependabot (`.github/dependabot.yml`) propoe a atualizacao das actions.
+#   - PR vindo de fork roda conforme a politica do repositorio (Settings > Actions > "Fork pull
+#     request workflows"); o padrao do GitHub pede aprovacao para quem contribui pela primeira vez.
+
+name: Testes
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+# Um run por ref: um push novo cancela a execucao anterior do mesmo branch ou PR.
+concurrency:
+  group: testes-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        # digest de postgres:16 em 2026-10-29; traz pg_trgm e unaccent (contrib), usados por sql/extra.sql
+        image: postgres:16@sha256:1beaa3084eee2676f20a9cd9928f0bf2c5bf674f8e49f81017912183d377c61c
+        env:
+          POSTGRES_USER: plenario
+          POSTGRES_PASSWORD: plenario
+          POSTGRES_DB: plenario_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U plenario -d plenario_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgres://plenario:plenario@localhost:5432/plenario_test
+      TEST_DATABASE_URL: postgres://plenario:plenario@localhost:5432/plenario_test
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.2.12
+
+      - name: Dependências
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Schema no banco de teste
+        run: bun run db:push
+
+      - name: Testes da API
+        working-directory: apps/api
+        run: bun test
+
+      - name: Testes do ingest
+        working-directory: apps/ingest
+        run: bun test
+
+      - name: Testes do export
+        working-directory: apps/export
+        run: bun test
+
+      - name: Testes do web
+        working-directory: apps/web
+        run: bun test

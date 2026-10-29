@@ -1,0 +1,7 @@
+version: 2
+updates:
+  # Atualiza as actions fixadas por SHA nos workflows (o comentario com a versao vai junto).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

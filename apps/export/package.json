@@ -4,8 +4,9 @@
   "type": "module",
   "scripts": {
     "start": "bun --env-file=../../.env src/index.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "@plenario/core": "workspace:*", "@plenario/api": "workspace:*", "drizzle-orm": "^0.44.0" },
+  "dependencies": { "@plenario/core": "workspace:*", "@plenario/api": "workspace:*", "drizzle-orm": "^0.45.2" },
   "devDependencies": { "typescript": "^5.8.0", "@types/bun": "latest" }
 }

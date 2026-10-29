@@ -2,6 +2,7 @@ import type {
   Casa,
   FeedItem,
   Parlamentar,
+  ParlamentarResumo,
   ProposicaoDetalhe,
   ProposicaoResumo,
   VotacaoDetalhe,
@@ -157,6 +158,7 @@ EMENTAS.forEach((ementa, i) => {
     dataApresentacao: diasAtras(inteiro(1, 75), 13),
     autores,
     votacoes: [],
+    consulta: null,
   });
 });
 
@@ -332,6 +334,65 @@ for (const p of parlamentares.filter((x) => x.casa === "camara")) {
       porCategoria: cats,
     });
   }
+}
+
+// ---- consultas públicas (e-Cidadania) ----
+// Sem sorteio: não desloca a semente dos dados acima. Proposições do Senado; o autor é o proponente.
+// Enquete aberta (cada pessoa cadastrada vota uma vez): o mock só traz os totais, sem juízo.
+const senado = proposicoes.filter((p) => p.casa === "senado");
+const instanteConsulta = (diasAtras: number): string =>
+  new Date(AGORA - diasAtras * DIA - 3_600_000).toISOString();
+// Falha com mensagem clara se a semente/ordem dos dados mudar (sem `!` solto).
+function senadoEm(i: number): ProposicaoDetalhe {
+  const p = senado[i];
+  if (!p) throw new Error(`fixtures de consulta: proposicao do Senado #${i} ausente`);
+  return p;
+}
+const proponente = (p: ProposicaoDetalhe): ParlamentarResumo => {
+  const autor = p.autores[0];
+  if (!autor) throw new Error(`fixtures de consulta: proposicao ${p.rotulo} sem autor`);
+  return autor.parlamentar;
+};
+const comAutor = (
+  base: ProposicaoDetalhe,
+  id: string,
+  numero: number,
+  autor: ParlamentarResumo,
+): ProposicaoDetalhe => ({
+  ...base,
+  id,
+  numero,
+  rotulo: `${base.siglaTipo} ${numero}/${base.ano}`,
+  url: `https://example.org/senado/proposicao/${id.split(":")[1]}`,
+  autores: [{ parlamentar: autor, proponente: true, ordem: 1 }],
+});
+
+const autorDoPerfil = proponente(senadoEm(3));
+const consultas: { prop: ProposicaoDetalhe; dias: number; sim: number; nao: number; urlInvalida?: true }[] = [
+  { prop: senadoEm(0), dias: 4, sim: 412876, nao: 198043 }, // números grandes (overflow e pt-BR)
+  { prop: senadoEm(1), dias: 9, sim: 37, nao: 12, urlInvalida: true }, // números pequenos; url http: = placar sem link
+  { prop: senadoEm(2), dias: 20, sim: 0, nao: 58 }, // zero no Sim
+  // dois do mesmo autor, para o filtro "Consultas" no Perfil
+  { prop: comAutor(senadoEm(3), "senado:3900101", 1101, autorDoPerfil), dias: 2, sim: 5120, nao: 1877 },
+  { prop: comAutor(senadoEm(3), "senado:3900102", 1102, autorDoPerfil), dias: 13, sim: 301, nao: 0 },
+];
+for (const c of consultas) {
+  const apuradoEm = instanteConsulta(c.dias);
+  // host oficial: o PlacarConsulta só mostra o link se a url passar em urlFonteConsultaValida
+  const urlFonte = `${c.urlInvalida ? "http" : "https"}://www12.senado.leg.br/ecidadania/visualizacaomateria?id=${c.prop.id.split(":")[1]}`;
+  // placar também na página da proposição (senadoEm(3) e as demais sem consulta ficam com null)
+  c.prop.consulta = { votosSim: c.sim, votosNao: c.nao, apuradoEm, urlFonte };
+  feed.push({
+    id: String(seq++),
+    tipo: "consulta_publica",
+    ocorridoEm: apuradoEm,
+    parlamentar: proponente(c.prop),
+    proposicao: proposicaoResumo(c.prop),
+    votosSim: c.sim,
+    votosNao: c.nao,
+    apuradoEm,
+    urlFonte,
+  });
 }
 
 feed.sort((a, b) =>

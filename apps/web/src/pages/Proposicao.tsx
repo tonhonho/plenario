@@ -4,6 +4,7 @@ import { useProposicao } from "../api/queries";
 import { hrefVotacao, ResultadoVotacao } from "../components/FeedCard";
 import { Topo } from "../components/Layout";
 import { ParlamentarLinha } from "../components/ParlamentarLinha";
+import { PlacarConsulta } from "../components/PlacarConsulta";
 import { EstadoErro, EstadoVazio, Etiqueta, FonteLink, Linha, Orgao, SeguirBotao } from "../components/ui";
 import { CASA_NOME, dataExtenso, quandoVotacao } from "../lib/format";
 
@@ -75,6 +76,20 @@ export function Proposicao() {
             </p>
           )}
         </section>
+
+        {p.consulta && (
+          <section aria-labelledby="consulta" className="border-b border-line px-4 py-5">
+            <h2 id="consulta" className="text-base font-semibold">
+              Consulta pública
+            </h2>
+            <PlacarConsulta
+              votosSim={p.consulta.votosSim}
+              votosNao={p.consulta.votosNao}
+              apuradoEm={p.consulta.apuradoEm}
+              urlFonte={p.consulta.urlFonte}
+            />
+          </section>
+        )}
 
         <section aria-labelledby="autores" className="border-b border-line">
           <h2 id="autores" className="px-4 pt-5 pb-2 text-base font-semibold">

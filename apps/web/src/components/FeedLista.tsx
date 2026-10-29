@@ -12,6 +12,7 @@ export const OPCOES_TIPO: { valor: FiltroTipo; rotulo: string }[] = [
   { valor: "voto", rotulo: "Votos" },
   { valor: "proposicao", rotulo: "Projetos" },
   { valor: "despesa_mensal", rotulo: "Gastos" },
+  { valor: "consulta_publica", rotulo: "Consultas" },
 ];
 
 /** Filtro de tipo guardado na URL (?tipo=voto), para o voltar do navegador e o link funcionarem. */

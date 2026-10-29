@@ -1,0 +1,3 @@
+[test]
+# O web tem DOM proprio (preload em apps/web/bunfig.toml). Rodar `bun test` na raiz sem ele quebra esses testes.
+pathIgnorePatterns = ["apps/web/**"]

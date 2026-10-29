@@ -24,7 +24,7 @@ export const TAMANHO_PAGINA = 50;
 // Feed geral (quem não segue ninguém) guarda só os N mais recentes de cada tipo.
 export const LIMITE_FEED_GERAL = 6000;
 
-export const TIPOS_FEED: FeedItemTipo[] = ["voto", "proposicao", "despesa_mensal"];
+export const TIPOS_FEED: FeedItemTipo[] = ["voto", "proposicao", "despesa_mensal", "consulta_publica"];
 
 // ":" não é aceito em nome de arquivo em todo lugar (Windows, artifacts do Actions).
 export function arquivoId(id: string): string {
@@ -86,11 +86,19 @@ export interface CompactoDespesa extends CompactoBase {
   total: number;
   porCategoria: { categoria: string; valor: number }[];
 }
-export type FeedItemCompacto = CompactoVoto | CompactoProposicao | CompactoDespesa;
+// Números do card vêm de evento.resumo, que o ingest atualiza a cada releitura da consulta.
+export interface CompactoConsulta extends CompactoBase {
+  tipo: "consulta_publica";
+  proposicao: ProposicaoResumo;
+  votosSim: number;
+  votosNao: number;
+  apuradoEm: string; // ISO UTC
+}
+export type FeedItemCompacto = CompactoVoto | CompactoProposicao | CompactoDespesa | CompactoConsulta;
 
 // feed/<id>/<tipo>/<n>.json e feed/geral/<tipo>/<n>.json
 // Um fluxo por (parlamentar, tipo), em ordem (ocorridoEm desc, id desc). "Tudo" = merge dos
-// três fluxos no navegador. Todo fluxo tem pelo menos a página 1, mesmo vazia (sem 404).
+// quatro fluxos no navegador. Todo fluxo tem pelo menos a página 1, mesmo vazia (sem 404).
 export interface PaginaFeed {
   itens: FeedItemCompacto[];
   proxima: number | null;

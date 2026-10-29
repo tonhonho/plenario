@@ -33,7 +33,7 @@ export const votoEnum = pgEnum("voto_tipo", [
   "outro",
 ]);
 
-export const eventoTipoEnum = pgEnum("evento_tipo", ["voto", "proposicao", "despesa_mensal"]);
+export const eventoTipoEnum = pgEnum("evento_tipo", ["voto", "proposicao", "despesa_mensal", "consulta_publica"]);
 
 export const parlamentar = pgTable(
   "parlamentar",
@@ -108,6 +108,23 @@ export const proposicaoAutor = pgTable(
     primaryKey({ columns: [t.proposicaoId, t.parlamentarId] }),
     index("proposicao_autor_parl_idx").on(t.parlamentarId),
   ],
+);
+
+// Apuracao de consulta publica do e-Cidadania (enquete aberta). Os numeros sao da fonte, no instante `apuradoEm`.
+export const consultaPublica = pgTable(
+  "consulta_publica",
+  {
+    materiaCod: text("materia_cod").primaryKey(),
+    proposicaoId: text("proposicao_id")
+      .notNull()
+      .references(() => proposicao.id, { onDelete: "cascade" }),
+    votosSim: integer("votos_sim").notNull(),
+    votosNao: integer("votos_nao").notNull(),
+    apuradoEm: timestamp("apurado_em", { withTimezone: true }).notNull(), // instante da fonte, nao now()
+    urlFonte: text("url_fonte").notNull(),
+    atualizadoEm: timestamp("atualizado_em", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("consulta_publica_apurado_idx").on(t.apuradoEm)],
 );
 
 export const votacao = pgTable(
@@ -186,9 +203,10 @@ export const despesa = pgTable(
 
 // Feed materializado. Cada linha é um card. O ingest escreve aqui depois de gravar a fonte;
 // a API só lê. `refId` aponta pra linha de origem conforme o tipo:
-//   voto           -> votacao.id
-//   proposicao     -> proposicao.id
-//   despesa_mensal -> "<ano>-<mes2>" (ex.: "2026-09"), totalizado de `despesa`
+//   voto              -> votacao.id
+//   proposicao        -> proposicao.id
+//   despesa_mensal    -> "<ano>-<mes2>" (ex.: "2026-09"), totalizado de `despesa`
+//   consulta_publica  -> "<proposicao_id>:<AAAA-MM>" (mes da apresentacao; um por proposicao, `resumo` com o placar da ultima leitura)
 export const evento = pgTable(
   "evento",
   {
